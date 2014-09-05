@@ -1,28 +1,35 @@
-cmake_minimum_required(VERSION 2.4.6)
-include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
+cmake_minimum_required(VERSION 2.8.3)
+project(vicon_bridge)
 
-# Set the build type.  Options are:
-#  Coverage       : w/ debug symbols, w/o optimization, w/ code-coverage
-#  Debug          : w/ debug symbols, w/o optimization
-#  Release        : w/o debug symbols, w/ optimization
-#  RelWithDebInfo : w/ debug symbols, w/ optimization
-#  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
-#set(ROS_BUILD_TYPE RelWithDebInfo)
+find_package(catkin REQUIRED COMPONENTS
+  roscpp message_generation geometry_msgs tf diagnostic_updater dynamic_reconfigure
+)
+find_package(Boost REQUIRED COMPONENTS signals)
 
-rosbuild_init()
+add_service_files(
+  FILES
+  viconCalibrateSegment.srv
+  viconGrabPose.srv
+)
 
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
-set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
+add_message_files(
+  FILES
+  Marker.msg
+  Markers.msg
+  TfDistortInfo.msg
+)
 
-rosbuild_genmsg()
-rosbuild_gensrv()
+generate_messages(
+  DEPENDENCIES
+  geometry_msgs
+)
 
-# Generate dynamic parameters
-rosbuild_find_ros_package(dynamic_reconfigure)
-include(${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake)
-gencfg()
+generate_dynamic_reconfigure_options(cfg/tf_distort.cfg)
 
-# check for platform
+catkin_package(
+  CATKIN_DEPENDS roscpp message_runtime geometry_msgs tf diagnostic_updater
+)
+
 if(CMAKE_SIZEOF_VOID_P MATCHES "8")
     set(VICON_SDK             vicon_sdk/vicon_datastream_SDK_1.2.59611_x64)
     set(VICON_SDK_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/${VICON_SDK})
@@ -35,22 +42,32 @@ else(CMAKE_SIZEOF_VOID_P MATCHES "8")
     message(FATAL_ERROR "unable to detect platform")
 endif (CMAKE_SIZEOF_VOID_P MATCHES "8")
 
-include_directories(${INCLUDE_DIRECTORIES} ${VICON_SDK_INCLUDE_DIR})
-link_directories(${LINK_DIRECTORIES} ${PROJECT_SOURCE_DIR}/lib ${VICON_SDK_LINK_DIR})
+include_directories(
+  ${catkin_INCLUDE_DIRS}
+  ${VICON_SDK_INCLUDE_DIR}
+)
 
-rosbuild_add_boost_directories()
+link_directories(${VICON_SDK_LINK_DIR})
 
-rosbuild_add_library(msvc_bridge src/msvc_bridge.cpp)
+add_library(msvc_bridge src/msvc_bridge.cpp)
 
-rosbuild_add_executable(vicon_bridge src/vicon_bridge.cpp)
-target_link_libraries(vicon_bridge msvc_bridge ViconDataStreamSDK_CPP)
-rosbuild_link_boost(vicon_bridge signals)
+add_executable(vicon_bridge src/vicon_bridge.cpp)
+target_link_libraries(vicon_bridge
+  ${catkin_LIBRARIES} msvc_bridge ViconDataStreamSDK_CPP
+)
 
-rosbuild_add_executable(calibrate src/calibrate_segment.cpp)
+add_executable(calibrate src/calibrate_segment.cpp)
+target_link_libraries(calibrate
+  ${catkin_LIBRARIES}
+)
 
-rosbuild_add_executable(tf_distort src/tf_distort.cpp)
-rosbuild_link_boost(tf_distort signals)
+add_executable(tf_distort src/tf_distort.cpp)
+add_dependencies(tf_distort vicon_bridge_gencpp ${${PROJECT_NAME}_EXPORTED_TARGETS})
+target_link_libraries(tf_distort
+  ${catkin_LIBRARIES}
+)
 
-rosbuild_add_executable(testclient src/ViconDataStreamSDK_CPPTest.cpp)
-target_link_libraries(testclient ViconDataStreamSDK_CPP)
-rosbuild_link_boost(testclient signals)
+add_executable(testclient src/ViconDataStreamSDK_CPPTest.cpp)
+target_link_libraries(testclient
+  ${catkin_LIBRARIES} ViconDataStreamSDK_CPP
+)
