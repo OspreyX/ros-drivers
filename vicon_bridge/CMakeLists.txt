@@ -57,6 +57,7 @@ target_link_libraries(vicon_bridge
 )
 
 add_executable(calibrate src/calibrate_segment.cpp)
+add_dependencies(calibrate vicon_bridge_gencpp ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(calibrate
   ${catkin_LIBRARIES}
 )
