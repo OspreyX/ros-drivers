@@ -52,6 +52,7 @@ link_directories(${VICON_SDK_LINK_DIR})
 add_library(msvc_bridge src/msvc_bridge.cpp)
 
 add_executable(vicon_bridge src/vicon_bridge.cpp)
+add_dependencies(vicon_bridge vicon_bridge_gencpp ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(vicon_bridge
   ${catkin_LIBRARIES} msvc_bridge ViconDataStreamSDK_CPP
 )
